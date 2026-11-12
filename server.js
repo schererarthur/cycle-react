@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
@@ -8,13 +9,13 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-const SECRET_KEY = "chave_secreta_cycle_sown_jwt";
+const SECRET_KEY = process.env.JWT_SECRET;
 
 const db = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: 'admin', // Substitua pela sua senha do MySQL
-    database: 'db_fazenda'
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME || 'db_fazenda'
 });
 
 db.connect((err) => {
@@ -27,10 +28,11 @@ db.connect((err) => {
 
 // ==========================================
 // CADASTRO COM HASH DE SENHA E LOG DE ERRO
+// (Segurança: Força o tipo_usuario como 'funcionario')
 // ==========================================
 app.post('/cadastro', async (req, res) => {
-    const { nome, email, cpf, senha, tipo_usuario } = req.body;
-    const tipo = tipo_usuario || 'funcionario';
+    const { nome, email, cpf, senha } = req.body;
+    const tipo_usuario = 'funcionario'; // Impede autocadastro com perfil Master
 
     if (!nome || !email || !cpf || !senha) {
         return res.status(400).json({ erro: "Preencha todos os campos obrigatórios." });
@@ -41,7 +43,7 @@ app.post('/cadastro', async (req, res) => {
         const senhaHash = await bcrypt.hash(senha, salt);
 
         const query = "INSERT INTO usuarios (nome, email, cpf, senha, tipo_usuario) VALUES (?, ?, ?, ?, ?)";
-        db.query(query, [nome, email, cpf, senhaHash, tipo], (err, result) => {
+        db.query(query, [nome, email, cpf, senhaHash, tipo_usuario], (err, result) => {
             if (err) {
                 console.error("Erro no MySQL:", err.sqlMessage || err.message);
                 return res.status(500).json({ erro: "Erro MySQL: " + (err.sqlMessage || err.message) });
@@ -174,10 +176,12 @@ app.delete('/estoque/:id', verificarToken, (req, res) => {
     const { id } = req.params;
     db.query("DELETE FROM estoque WHERE id = ?", [id], (err) => {
         if (err) return res.status(500).json({ erro: "Erro ao excluir item." });
+        res.json({ mensagem: "Erro ao excluir item." });
         res.json({ mensagem: "Item excluído!" });
     });
 });
 
-app.listen(3000, () => {
-    console.log("Servidor API rodando na porta 3000 com autenticação JWT e Hash!");
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Servidor API rodando na porta ${PORT} com autenticação JWT e Hash!`);
 });
