@@ -36,23 +36,24 @@ function TelaAutenticao({ onLoginSucesso }) {
     }
   };
 
-  const lidarComCadastro = async (tipo_usuario) => {
+  const lidarComCadastro = async () => {
     if (!nome || !email || !cpf || !senha) {
       Alert.alert("Atenção", "Preencha todos os campos do formulário.");
       return;
     }
 
     try {
+      // O tipo_usuario foi removido do envio público para garantir segurança
       const response = await fetch('http://localhost:3000/cadastro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, email, cpf, senha, tipo_usuario })
+        body: JSON.stringify({ nome, email, cpf, senha })
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert("Sucesso!", "Usuário cadastrado com sucesso. Faça o login agora.");
+        Alert.alert("Sucesso!", "Conta cadastrada com sucesso. Faça o login agora.");
         setIsCadastrando(false);
         setNome(''); setEmail(''); setCpf(''); setSenha('');
       } else {
@@ -85,7 +86,7 @@ function TelaAutenticao({ onLoginSucesso }) {
         {!isCadastrando ? (
           <>
             <TouchableOpacity style={styles.buttonLogin} onPress={lidarComLogin}>
-              <Text style={styles.buttonLoginText}>Autenticar com JWT</Text>
+              <Text style={styles.buttonLoginText}>Entrar</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.buttonTrocar} onPress={() => setIsCadastrando(true)}>
@@ -94,12 +95,8 @@ function TelaAutenticao({ onLoginSucesso }) {
           </>
         ) : (
           <>
-            <TouchableOpacity style={styles.buttonLogin} onPress={() => lidarComCadastro('master')}>
-              <Text style={styles.buttonLoginText}>Cadastrar como Master</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[styles.buttonLogin, { backgroundColor: '#388e3c' }]} onPress={() => lidarComCadastro('funcionario')}>
-              <Text style={styles.buttonLoginText}>Cadastrar como Funcionário</Text>
+            <TouchableOpacity style={styles.buttonLogin} onPress={lidarComCadastro}>
+              <Text style={styles.buttonLoginText}>Cadastrar Conta</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.buttonTrocar} onPress={() => setIsCadastrando(false)}>

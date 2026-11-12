@@ -7,7 +7,7 @@ export default function Cadastro() {
   const [cpf, setCpf] = useState('');
   const [senha, setSenha] = useState('');
 
-  const realizarCadastro = async (tipo_usuario) => {
+  const realizarCadastro = async () => {
     if (!nome || !email || !cpf || !senha) {
       Alert.alert("Atenção", "Preencha todos os campos do formulário.");
       return;
@@ -17,13 +17,13 @@ export default function Cadastro() {
       const response = await fetch('http://localhost:3000/cadastro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, email, cpf, senha, tipo_usuario }),
+        body: JSON.stringify({ nome, email, cpf, senha }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert("Sucesso", `${tipo_usuario === 'funcionario' ? 'Funcionário' : 'Master'} cadastrado com sucesso!`);
+        Alert.alert("Sucesso", "Conta cadastrada com sucesso!");
         setNome(''); setEmail(''); setCpf(''); setSenha('');
       } else {
         Alert.alert("Erro", data.erro || "Não foi possível realizar o cadastro.");
@@ -43,12 +43,8 @@ export default function Cadastro() {
         <TextInput style={styles.input} placeholder="CPF" placeholderTextColor="#888" value={cpf} onChangeText={setCpf} keyboardType="numeric" />
         <TextInput style={styles.input} placeholder="Senha" placeholderTextColor="#888" value={senha} onChangeText={setSenha} secureTextEntry />
         
-        <TouchableOpacity style={styles.btnMaster} onPress={() => realizarCadastro('master')}>
-          <Text style={styles.buttonText}>Cadastrar Master</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.btnFuncionario} onPress={() => realizarCadastro('funcionario')}>
-          <Text style={styles.buttonText}>Cadastrar Funcionário</Text>
+        <TouchableOpacity style={styles.btnCadastrar} onPress={realizarCadastro}>
+          <Text style={styles.buttonText}>Cadastrar Conta</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -60,7 +56,6 @@ const styles = StyleSheet.create({
   cardBox: { width: '100%', maxWidth: 450, backgroundColor: '#ffffff', padding: 25, borderRadius: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 6, elevation: 5, borderWidth: 1, borderColor: '#c8e6c9' },
   title: { fontSize: 24, fontWeight: 'bold', color: '#1b5e20', marginBottom: 20, textAlign: 'center' },
   input: { width: '100%', height: 48, borderColor: '#a5d6a7', borderWidth: 1, borderRadius: 8, paddingHorizontal: 15, marginBottom: 15, backgroundColor: '#f9fbe7', color: '#333' },
-  btnMaster: { width: '100%', height: 48, backgroundColor: '#2e7d32', justifyContent: 'center', alignItems: 'center', borderRadius: 8, marginBottom: 12 },
-  btnFuncionario: { width: '100%', height: 48, backgroundColor: '#388e3c', justifyContent: 'center', alignItems: 'center', borderRadius: 8, marginBottom: 5 },
+  btnCadastrar: { width: '100%', height: 48, backgroundColor: '#2e7d32', justifyContent: 'center', alignItems: 'center', borderRadius: 8, marginTop: 5 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
 });
