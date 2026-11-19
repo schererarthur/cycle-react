@@ -28,7 +28,6 @@ db.connect((err) => {
 
 // ==========================================
 // CADASTRO COM HASH DE SENHA E LOG DE ERRO
-// (Segurança: Força o tipo_usuario como 'funcionario')
 // ==========================================
 app.post('/cadastro', async (req, res) => {
     const { nome, email, cpf, senha } = req.body;
@@ -94,7 +93,7 @@ app.post('/login', (req, res) => {
 });
 
 // ==========================================
-// MIDDLEWARE DE VERIFICAÇÃO DO JWT
+// MIDDLEWARES DE AUTENTICAÇÃO E PERFIS
 // ==========================================
 function verificarToken(req, res, next) {
     const authHeader = req.headers['authorization'];
@@ -110,6 +109,14 @@ function verificarToken(req, res, next) {
     });
 }
 
+function verificarMaster(req, res, next) {
+    if (req.usuario && req.usuario.tipo_usuario === 'master') {
+        next();
+    } else {
+        return res.status(403).json({ erro: "Acesso negado. Apenas administradores Master podem realizar esta operação." });
+    }
+}
+
 // ==========================================
 // ROTAS PROTEGIDAS DO REBANHO
 // ==========================================
@@ -120,7 +127,7 @@ app.get('/animais', verificarToken, (req, res) => {
     });
 });
 
-app.post('/animais', verificarToken, (req, res) => {
+app.post('/animais', verificarToken, verificarMaster, (req, res) => {
     const { id_animal, peso, raca, sexo } = req.body;
     db.query("INSERT INTO rebanho (id_animal, peso, raca, sexo) VALUES (?, ?, ?, ?)", [id_animal, peso, raca, sexo], (err) => {
         if (err) return res.status(500).json({ erro: "Erro ao cadastrar animal." });
@@ -128,7 +135,7 @@ app.post('/animais', verificarToken, (req, res) => {
     });
 });
 
-app.put('/animais/:id', verificarToken, (req, res) => {
+app.put('/animais/:id', verificarToken, verificarMaster, (req, res) => {
     const { id } = req.params;
     const { id_animal, peso, raca, sexo } = req.body;
     db.query("UPDATE rebanho SET id_animal = ?, peso = ?, raca = ?, sexo = ? WHERE id = ?", [id_animal, peso, raca, sexo, id], (err) => {
@@ -137,7 +144,7 @@ app.put('/animais/:id', verificarToken, (req, res) => {
     });
 });
 
-app.delete('/animais/:id', verificarToken, (req, res) => {
+app.delete('/animais/:id', verificarToken, verificarMaster, (req, res) => {
     const { id } = req.params;
     db.query("DELETE FROM rebanho WHERE id = ?", [id], (err) => {
         if (err) return res.status(500).json({ erro: "Erro ao excluir animal." });
@@ -155,7 +162,7 @@ app.get('/estoque', verificarToken, (req, res) => {
     });
 });
 
-app.post('/estoque', verificarToken, (req, res) => {
+app.post('/estoque', verificarToken, verificarMaster, (req, res) => {
     const { nome_item, quantidade, categoria } = req.body;
     db.query("INSERT INTO estoque (nome_item, quantidade, categoria) VALUES (?, ?, ?)", [nome_item, quantidade, categoria], (err) => {
         if (err) return res.status(500).json({ erro: "Erro ao adicionar item." });
@@ -163,7 +170,7 @@ app.post('/estoque', verificarToken, (req, res) => {
     });
 });
 
-app.put('/estoque/:id', verificarToken, (req, res) => {
+app.put('/estoque/:id', verificarToken, verificarMaster, (req, res) => {
     const { id } = req.params;
     const { nome_item, quantidade, categoria } = req.body;
     db.query("UPDATE estoque SET nome_item = ?, quantidade = ?, categoria = ? WHERE id = ?", [nome_item, quantidade, categoria, id], (err) => {
@@ -172,13 +179,42 @@ app.put('/estoque/:id', verificarToken, (req, res) => {
     });
 });
 
-app.delete('/estoque/:id', verificarToken, (req, res) => {
+app.delete('/estoque/:id', verificarToken, verificarMaster, (req, res) => {
     const { id } = req.params;
     db.query("DELETE FROM estoque WHERE id = ?", [id], (err) => {
         if (err) return res.status(500).json({ erro: "Erro ao excluir item." });
-        res.json({ mensagem: "Erro ao excluir item." });
-        res.json({ mensagem: "Item excluído!" });
+        return res.json({ mensagem: "Item excluído com sucesso!" });
     });
+});
+
+// ==========================================
+// ROTAS DE PRODUÇÃO AGRÍCOLA (Atualizadas com Log de Erro)
+// ==========================================
+app.get('/producao', verificarToken, (req, res) => {
+    db.query("SELECT * FROM producao ORDER BY id DESC", (err, results) => {
+        if (err) return res.status(500).json({ erro: "Erro ao buscar produção." });
+        res.json(results);
+    });
+});
+
+app.post('/producao', verificarToken, (req, res) => {
+    const { cultura, hectares, sacas, data_colheita } = req.body;
+    
+    if (!cultura || !hectares || !sacas || !data_colheita) {
+        return res.status(400).json({ erro: "Preencha todos os campos de produção." });
+    }
+
+    db.query(
+        "INSERT INTO producao (cultura, hectares, sacas, data_colheita) VALUES (?, ?, ?, ?)", 
+        [cultura, hectares, sacas, data_colheita], 
+        (err) => {
+            if (err) {
+                console.error("ERRO MYSQL DETALHADO EM /producao:", err); // <-- Imprime o erro exato no terminal
+                return res.status(500).json({ erro: "Erro ao registar produção: " + err.message });
+            }
+            res.status(201).json({ mensagem: "Produção registada com sucesso!" });
+        }
+    );
 });
 
 const PORT = process.env.PORT || 3000;

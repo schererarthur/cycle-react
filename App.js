@@ -1,13 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createDrawerNavigator } from '@react-navigation/drawer';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import { 
+  createDrawerNavigator, 
+  DrawerContentScrollView, 
+  DrawerItemList, 
+  DrawerItem 
+} from '@react-navigation/drawer';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  Alert, 
+  ScrollView, 
+  ActivityIndicator 
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import Cadastro from './screens/Cadastro';
 import Dados from './screens/Dados';
 import Gastos from './screens/Gastos';
+import Producao from './screens/Producao';
 
 const Drawer = createDrawerNavigator();
+
+// URL da API (Dica: Se testar em celular físico, troque 'localhost' pelo IP do seu PC, ex: 'http://192.168.1.15:3000')
+const API_URL = 'http://localhost:3000';
 
 function TelaAutenticao({ onLoginSucesso }) {
   const [isCadastrando, setIsCadastrando] = useState(false);
@@ -18,7 +37,7 @@ function TelaAutenticao({ onLoginSucesso }) {
 
   const lidarComLogin = async () => {
     try {
-      const response = await fetch('http://localhost:3000/login', {
+      const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, senha })
@@ -43,8 +62,7 @@ function TelaAutenticao({ onLoginSucesso }) {
     }
 
     try {
-      // O tipo_usuario foi removido do envio público para garantir segurança
-      const response = await fetch('http://localhost:3000/cadastro', {
+      const response = await fetch(`${API_URL}/cadastro`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nome, email, cpf, senha })
@@ -109,17 +127,78 @@ function TelaAutenticao({ onLoginSucesso }) {
   );
 }
 
+// Componente customizado do menu lateral contendo o Botão de Logout
+function CustomDrawerContent(props) {
+  return (
+    <DrawerContentScrollView {...props}>
+      <DrawerItemList {...props} />
+      <DrawerItem 
+        label="Terminar Sessão (Logout)" 
+        onPress={props.onLogout} 
+        labelStyle={{ color: '#d32f2f', fontWeight: 'bold' }}
+      />
+    </DrawerContentScrollView>
+  );
+}
+
 export default function App() {
   const [token, setToken] = useState(null);
   const [tipoUsuario, setTipoUsuario] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Restaura a sessão automaticamente ao abrir o app
+  useEffect(() => {
+    async function carregarSessaoSalva() {
+      try {
+        const savedToken = await AsyncStorage.getItem('userToken');
+        const savedTipo = await AsyncStorage.getItem('tipoUsuario');
+        if (savedToken) {
+          setToken(savedToken);
+          setTipoUsuario(savedTipo);
+        }
+      } catch (e) {
+        console.error("Erro ao carregar sessão do AsyncStorage", e);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    carregarSessaoSalva();
+  }, []);
+
+  const handleLoginSucesso = async (tk, tipo) => {
+    setToken(tk);
+    setTipoUsuario(tipo);
+    await AsyncStorage.setItem('userToken', tk);
+    await AsyncStorage.setItem('tipoUsuario', tipo);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem('userToken');
+      await AsyncStorage.removeItem('tipoUsuario');
+      setToken(null);
+      setTipoUsuario(null);
+    } catch (e) {
+      Alert.alert("Erro", "Não foi possível terminar a sessão.");
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#e8f5e9' }}>
+        <ActivityIndicator size="large" color="#2e7d32" />
+      </View>
+    );
+  }
 
   if (!token) {
-    return <TelaAutenticao onLoginSucesso={(tk, tipo) => { setToken(tk); setTipoUsuario(tipo); }} />;
+    return <TelaAutenticao onLoginSucesso={handleLoginSucesso} />;
   }
 
   return (
     <NavigationContainer>
       <Drawer.Navigator 
+        drawerContent={(props) => <CustomDrawerContent {...props} onLogout={handleLogout} />}
         screenOptions={{
           drawerActiveTintColor: '#1b5e20',
           drawerInactiveTintColor: '#555',
@@ -133,6 +212,14 @@ export default function App() {
           component={Dados} 
           initialParams={{ token }} 
         />
+        
+        {/* Tela de Produção acessível por Master e Funcionário */}
+        <Drawer.Screen 
+          name="Controle de Produção" 
+          component={Producao} 
+          initialParams={{ token }} 
+        />
+
         {tipoUsuario === 'master' && (
           <>
             <Drawer.Screen 
